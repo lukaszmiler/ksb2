@@ -1,15 +1,17 @@
 package com.example.ksb2;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@RestController
-@RequestMapping("/cars")
+@Controller
 public class CarApi {
     List<Car> carList = new ArrayList<>();
 
@@ -20,63 +22,61 @@ public class CarApi {
         carList.add(new Car(4, "Fiat", "Sienna", "Blue"));
     }
 
-    @GetMapping
-    public ResponseEntity<List<Car>> getCarList() {
-        return new ResponseEntity<>(carList, HttpStatus.OK);
+    @GetMapping("/cars")
+    public String showCars(Model model) {
+        model.addAttribute("cars", carList);
+        model.addAttribute("newCar", new Car());
+        return "cars";
     }
 
     @GetMapping("/id/{id}")
-    public ResponseEntity<Car> getCarListById(@PathVariable int id) {
+    public String getCarListById(@PathVariable int id, Model model) {
         Optional<Car> foundCar = carList.stream().filter(car -> car.getId() == id).findFirst();
-        if (foundCar.isPresent()) return new ResponseEntity<>(foundCar.get(), HttpStatus.OK);
-        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        if (foundCar.isPresent()) {
+            model.addAttribute("foundCar", foundCar.get());
+        } else {
+            model.addAttribute("foundCar", new Car());
+        }
+        return "carById";
     }
 
     @GetMapping("/color/{color}")
-    public ResponseEntity<List<Car>> getCarListByColor(@PathVariable String color) {
+    public String getCarListByColor(@PathVariable String color, Model model) {
         List<Car> list = new ArrayList<>();
         carList.stream().filter(car -> car.getColor().equalsIgnoreCase(color)).forEach(list::add);
-        if (list != null) return new ResponseEntity<>(list, HttpStatus.OK);
-        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        if (!list.isEmpty()) model.addAttribute("cars", list);
+        return "carByColor";
     }
 
-    @PostMapping()
-    public ResponseEntity addingCar(@RequestBody Car car) {
-        boolean add = carList.add(car);
-        if (add) return new ResponseEntity(HttpStatus.CREATED);
-        return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+    @PostMapping("/addCar")
+    public String addCar(@ModelAttribute Car car) {
+        carList.add(car);
+        return "redirect:/cars";
     }
 
-    @PutMapping()
-    public ResponseEntity changingCar(@RequestBody Car newCar) {
-        Optional<Car> foundCar = carList.stream().filter(car -> car.getId() == newCar.getId()).findFirst();
-        if (foundCar.isPresent()) {
-            carList.remove(foundCar.get());
-            carList.add(newCar);
-            return new ResponseEntity(HttpStatus.OK);
+    @GetMapping("/removeCar")
+    public String removeCar(@ModelAttribute Car car) {
+        for (Car c : carList) {
+            if (c.getId() == car.getId()) {
+                carList.remove(c);
+                break;
+            }
         }
-        return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+        return "redirect:/cars";
     }
 
-    @PatchMapping()
-    public ResponseEntity changingCarDetail(@RequestBody Car newCar) {
-        Optional<Car> foundCar = carList.stream().filter(car -> car.getId() == newCar.getId()).findFirst();
+    @GetMapping("/modifyCar")
+    public String modifyCar(@ModelAttribute Car newCar) {
+        Optional<Car> foundCar = findCar(newCar);
         if (foundCar.isPresent()) {
-            carList.remove(foundCar.get());
-            carList.add(newCar);
-            return new ResponseEntity(HttpStatus.OK);
+            foundCar.get().setModel(newCar.getModel());
+            foundCar.get().setMark(newCar.getMark());
+            foundCar.get().setColor(newCar.getColor());
         }
-        return new ResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR);
+        return "redirect:/cars";
     }
 
-    @DeleteMapping()
-    public ResponseEntity<Car> deleteCar(@RequestBody Car CarToDelete) {
-        Optional<Car> foundCar = carList.stream().filter(car -> car.getId() == CarToDelete.getId()).findFirst();
-        if (foundCar.isPresent()) {
-            carList.remove(foundCar.get());
-            return new ResponseEntity<>(foundCar.get(), HttpStatus.OK);
-        }
-        return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    private Optional<Car> findCar(Car car) {
+        return carList.stream().filter(c -> c.getId() == car.getId()).findFirst();
     }
-
 }
